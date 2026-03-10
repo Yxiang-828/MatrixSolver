@@ -118,21 +118,54 @@ def print_help():
     print("     * If rank(X) = m -> Right inv exists -> Least norm sol")
     print("=" * 55 + "\n")
 
+def check_matrix():
+    print("\n--- Aiko's Matrix Checker (X * w = y) ---")
+    x_in = input("Enter X: ")
+    if not x_in.strip():
+        print("Canceled check.")
+        return
+    w_in = input("Enter w: ")
+    
+    X = parse_matrix(x_in)
+    w = parse_matrix(w_in)
+    
+    if X is None or w is None:
+        print("Invalid input.")
+        return
+        
+    try:
+        X = np.array(X, dtype=float)
+        w = np.array(w, dtype=float)
+        if w.ndim == 1:
+            w = w.reshape(-1, 1)
+            
+        y = X @ w
+        print("\nResult y = X * w:\n")
+        print(y)
+        print("-" * 41 + "\n")
+    except Exception as e:
+        print(f"B-Baka! The dimensions don't match for multiplication! {e}")
+
 if __name__ == "__main__":
     print("Welcome to Aiko's EE2211 L.E.S Solver~ 😳")
     print("You can just import `solve_les(X, y)` in your own scripts,")
     print("or use this interactively! 💕")
     print("Enter 'help' anytime to see the condition table.")
+    print("Enter 'check' to just multiply X and w to find y.")
     print("Format: separate columns with a comma (,), rows with semicolon (;).")
     print("Example X input: 1,2; 3,4")
     print("Example y input: 5; 6\n")
     
     while True:
         try:
-            x_in = input("\nEnter X (or 'help', or Ctrl+C to exit): ")
+            x_in = input("\nEnter X (or 'help', 'check', Ctrl+C to exit): ")
             
-            if x_in.strip().lower() == 'help':
+            cmd = x_in.strip().lower().strip("'").strip('"')
+            if cmd == 'help':
                 print_help()
+                continue
+            elif cmd == 'check':
+                check_matrix()
                 continue
                 
             if not x_in.strip():
