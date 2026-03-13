@@ -907,7 +907,22 @@ def tool_classification_poly():
 
             # Calculate and print MSE on training data
             y_pred_train = X_feat @ W
-            print_mse(Y, y_pred_train)
+            
+            # --- Detailed MSE Breakdown ---
+            mse_total = mean_squared_error(Y, y_pred_train)
+            print(f"\n{Fore.CYAN}--- Performance Metrics ---{C_RESET}")
+            rprint(f"Overall MSE (All Output Columns): {mse_total:.6f}")
+            
+            # Per-column MSE
+            num_outputs = Y.shape[1]
+            if num_outputs > 1:
+                print(f"MSE per Output Column (Class/Target):")
+                diff_sq = (Y - y_pred_train) ** 2
+                mse_per_col = np.mean(diff_sq, axis=0) # Mean over samples (rows)
+                for i in range(num_outputs):
+                    col_name = f"Class {i+1}"
+                    print(f"  {col_name}: {mse_per_col[i]:.6f}")
+            print("-" * 30)
 
             print("\nLearned W (each COLUMN = weights for one class):")
             mprint(W)
@@ -1284,7 +1299,7 @@ def tool_cheat_sheets():
         print("7) The Data Pipeline (6 Stages)")
         print("8) Learning Architectures (Supervised/Unsupervised/RL)")
         print("9) Preprocessing Myths (Imputation/Encoding/Feature Extraction)")
-        print("10) Key Misconceptions & Paradoxes (Simpson's/Anscombe's)")
+        print("10) Ultimate Trick Question Cheatsheet (Misconceptions)")
         print("B) Back to Main Menu")
         print("=" * 55)
         
@@ -1328,7 +1343,27 @@ def tool_cheat_sheets():
         elif cheat_choice == '3':
             print("\n--- [OPTION 3: PROBABILITY & COMBINATORICS CHEAT SHEET] ---")
             print("-" * 60)
-            print("I. COUNTING PRINCIPLES (Identify n & r)")
+            print("I. PROBABILITY FUNDAMENTAL RULES")
+            print("   1. THE SUM RULE ('OR')")
+            print("      Used for: Union of events (A OR B happens)")
+            print("      Formula: P(A U B) = P(A) + P(B) - P(A ∩ B)")
+            print("      -> Mutually Exclusive (Disjoint): P(A ∩ B) = 0, so just add P(A)+P(B).")
+            print("      Example: Rolling a 2 OR a 5 (Disjoint) -> 1/6 + 1/6 = 2/6.")
+
+            print("\n   2. THE PRODUCT RULE ('AND')")
+            print("      Used for: Intersection of events (A AND B happen)")
+            print("      Formula: P(A ∩ B) = P(A) * P(B | A)")
+            print("      -> Independent Events: P(B|A) = P(B), so P(A ∩ B) = P(A) * P(B).")
+            print("      Example (Indep): Coin flip Heads AND Die roll 6 -> 1/2 * 1/6 = 1/12.")
+            print("      Example (Dep): Draw Ace, don't replace, draw another -> 4/52 * 3/51.")
+
+            print("\n   3. THE COMPLEMENT RULE ('NOT')")
+            print("      Used for: 'At least one' problems (1 - None)")
+            print("      Formula: P(A) = 1 - P(A')")
+            print("      Example: P(At least 1 Head in 3 flips) = 1 - P(RRR) = 1 - 1/8 = 7/8.")
+
+            print("-" * 60)
+            print("II. COUNTING PRINCIPLES (Identify n & r)")
             print("   1. PERMUTATIONS (Order matters, No Repetition)")
             print("      How many ways to arrange r items from n distinct items?")
             print("      Formula: P(n,r) = n! / (n-r)!")
@@ -1354,9 +1389,14 @@ def tool_cheat_sheets():
             print("\n   6. MULTISETS (Permutations with Identical Items)")
             print("      Formula: n! / (n1! * n2! * ... * nk!)")
             print("      Example: Rearranging letters of 'BALLOON'.")
+
+            print("\n   7. NO ORDER, REPETITION (The 'Dice Roll' Shortcut)")
+            print("      Used for: Pairs with repeats but order doesn't matter (e.g. 1,1 vs 1,2)")
+            print("      Formula: n(n+1)/2  OR  Total - Sub-diagonal")
+            print("      Example: Rolling 2 dice, order doesn't matter -> 21 outcomes.")
             
             print("-" * 60)
-            print("II. PROBABILITY LAWS")
+            print("III. ADVANCED LAWS")
             print("   1. CONDITIONAL:  P(A | B) = P(A ∩ B) / P(B)")
             print("   2. INDEPENDENCE: Events A, B are independent IFF P(A ∩ B) = P(A)P(B)")
             print("   3. TOTAL PROB:   P(B) = Σ P(B | Ai) * P(Ai)  (Sum over all cases)")
@@ -1395,6 +1435,32 @@ def tool_cheat_sheets():
             print("  2. Multiplicative: f(x+y) = f(x)f(y) (e.g. exponentials)")
             print("  3. Squared/Absolute terms: f(ax) != a f(x)")
             print("  4. Multilinear != Linear (e.g. dot product is linear in x separately, not both)")
+
+            print("-" * 60)
+            print("VECTOR CALCULUS & DIMENSIONALITY (The Layout)")
+            print("1. SCALAR-VALUED Function (f: R^n -> R)")
+            print("   - Input  : Vector x (n x 1)")
+            print("   - Output : Scalar y (1 x 1)")
+            print("   - Derivative (Gradient ∇f): Vector (n x 1)")
+            print("     (Contains n partial derivatives, one for each input)")
+            print("     Example: f(x) = x^T A x  ->  ∇f(x) = (A + A^T)x")
+
+            print("\n2. VECTOR-VALUED Function (f: R^n -> R^m)")
+            print("   - Input  : Vector x (n x 1)")
+            print("   - Output : Vector y (m x 1)")
+            print("   - Derivative (Jacobian J): Matrix (m x n)")
+            print("     (m rows for outputs, n cols for inputs)")
+            print("     J_ij = ∂f_i / ∂x_j")
+            print("     Example: f(x) = Ax  ->  J = A (The matrix itself)")
+
+            print("\n3. HIGHER DERIVATIVE DIMENSIONS (The Pattern)")
+            print("   Scalar f: R^n -> R            Vector f: R^n -> R^m")
+            print("   ------------------            --------------------")
+            print("   1st: n x 1 (Vector)           m x n (Matrix)")
+            print("   2nd: n x n (Matrix)           m x n x n (3D Tensor)")
+            print("   3rd: n x n x n (3D Tensor)    m x n x n x n (4D Tensor)")
+            print("   Rule: Adds dimension n        Rule: Adds dimension n")
+            print("   k-th: n^k entries             m * n^k entries")
 
         elif cheat_choice == '5':
             print("\n--- [OPTION 5: LEARNING PARADIGMS - DEDUCTION / INDUCTION / ABDUCTION] ---")
@@ -1512,34 +1578,52 @@ def tool_cheat_sheets():
             print("  - MLOps: DevOps for ML (Versioning, Drift monitoring, CI/CD).")
 
         elif cheat_choice == '8':
-            print("\n--- [OPTION 8: LEARNING ARCHITECTURES & SIGNALS] ---")
-            print("The Mental Model: What signal does the model learn from?")
+            print("\n--- [OPTION 8: LEARNING ARCHITECTURES (INPUTS VS OUTPUTS)] ---")
+            print("Refined Logic: Distinguishing architectures by their rigorous constraints.")
             
-            print("\n1. SUPERVISED LEARNING")
-            print("   - Signal: Human-provided CORRECT ANSWERS (Labels).")
-            print("   - Goal: Map Input X -> Output Y.")
-            print("   - Examples: Classification (Discrete), Regression (Continuous).")
+            print("\n1. CLASSIFICATION (Strictly Supervised)")
+            print("   - Paradigm: SUPERVISED only.")
+            print("     (Requires ground-truth labels y to define the classes).")
+            print("     (If there are NO labels, it is called Clustering, not Classification).")
+            print("   - The Goal: Predict a category/class.")
+            print("   - Output (y): STRICTLY DISCRETE / Categorical (Nominal/Ordinal).")
+            print("     (e.g., 'Dog' vs 'Cat', 'Spam' vs 'Not Spam').")
+            print("   - Inputs (X): Can be ANYTHING (Continuous OR Discrete).")
+            print("   - 💡 Logic Gap Closed: If a question says 'Classification requires discrete features',")
+            print("     it is FALSE. Only the target label (y) must be discrete.")
 
-            print("\n2. UNSUPERVISED LEARNING")
-            print("   - Signal: Data Structure ALONE (No labels).")
-            print("   - Goal: Find hidden patterns, clusters, or probability density.")
-            print("   - Examples: Clustering (K-Means), Dimensionality Reduction (PCA).")
+            print("\n2. REGRESSION (Strictly Supervised)")
+            print("   - Paradigm: SUPERVISED only.")
+            print("   - The Goal: Predict a numerical value.")
+            print("   - Output (y): STRICTLY CONTINUOUS / Numerical (Interval/Ratio).")
+            print("     (e.g., Temperature, Price, Blood Pressure).")
+            print("   - Inputs (X): Can be ANYTHING.")
+            print("     (e.g., Square footage (cont) + Neighborhood ID (discrete) -> Price).")
+            print("   - 💡 Logic Gap Closed: The math (Linear/Ridge) requires y to be continuous.")
 
-            print("\n3. REINFORCEMENT LEARNING")
-            print("   - Signal: Environment Feedback (Reward / Penalty).")
-            print("   - Note: Signal is often DELAYED and SPARSE.")
-            print("   - Goal: Maximize cumulative reward over time (Policy Optimization).")
-            print("   - Examples: Robotics, Game AI, Trading.")
+            print("\n3. CLUSTERING (Unsupervised)")
+            print("   - The Goal: Find hidden structures/groupings.")
+            print("   - Output (y): DOES NOT EXIST during training (No labels provided).")
+            print("   - Inputs (X): Can be ANYTHING.")
+            print("     (e.g., Plotting Salary vs Age to find groups).")
+            print("   - 💡 Logic Gap Closed: Do not confuse the final cluster ID (which is discrete)")
+            print("     with a supervised label. Clustering has no ground truth to train against.")
 
-            print("\n4. SEMI-SUPERVISED LEARNING")
-            print("   - Signal: Mix of small labeled set + large unlabeled set.")
-            print("   - Goal: Leverage structure of unlabeled data to improve labeled performance.")
+            print("\n4. THE FEATURE EXTRACTION RULE")
+            print("   - The Goal: Turn Raw Data -> Feature Vector (X).")
+            print("   - Timing: Happens in Phase 1 (Data Wrangling) AND Phase 3 (Inference).")
+            print("   - 💡 Logic Gap Closed: This step is INDEPENDENT of the model.")
+            print("     You must extract features whether you are Classifying, Regressing, or Clustering.")
 
-            print("\n5. SELF-SUPERVISED LEARNING (Critical for EE2211/GenAI)")
-            print("   - Signal: Auto-generated from the data itself.")
-            print("   - Logic: 'Predict the missing piece' (e.g. Next token, Masked word).")
-            print("   - Format: Looks Unsupervised (no human labels), but technically Supervised (concrete loss).")
-            print("   - Example: LLMs (GPT), BERT.")
+            print("\n5. REINFORCEMENT LEARNING (Distinct Paradigm)")
+            print("   - Paradigm: NEITHER strictly Supervised nor Unsupervised.")
+            print("     (It has a feedback signal, but no 'correct answer' key).")
+            print("   - The Goal: Learn a Policy (Strategy) to maximize long-term reward.")
+            print("   - Signal: Scalar Reward/Penalty (often delayed/sparse).")
+            print("   - 💡 Logic Gap Closed: Do not call RL 'Unsupervised'.")
+            print("     Unsupervised finds patterns with NO external feedback.")
+            print("     RL optimizes behavior based on EXTERNAL feedback (Reward).")
+            print("     RL is 'Trial-and-Error' learning, unlike Supervised 'Teacher-Student'.")
 
         elif cheat_choice == '9':
             print("\n--- [OPTION 9: DATA PREPROCESSING MYTHS & TRUTHS] ---")
@@ -1575,13 +1659,62 @@ def tool_cheat_sheets():
             print("   - TRUTH: It's a data transformation step.")
 
         elif cheat_choice == '10':
-            print("\n--- [OPTION 10: KEY MISCONCEPTIONS & STATISTICAL PARADOXES] ---")
+            print("\n--- [OPTION 10: CONSOLIDATED ML EXAM NOTES & TRAPS] ---")
             
-            print("\n1. SIMPSON'S PARADOX")
-            print("   - What: A trend in groups DISAPPEARS or REVERSES when combined.")
-            print("   - Why: Confounding variable correlates with both Group and Outcome.")
-            print("   - Fix: STRATIFICATION (Analyze subgroups separately).")
-            print("   - NOT Fix: Data wrangling (cleaning doesn't solve statistical paradoxes).")
+            print("\n📍 TOPIC 1: MISSING DATA")
+            print("   - Bad: Replace with -1 or constant. (Distorts stats, kills correlation)")
+            print("   - Good: Mean (Continuous), Median (Skewed), Mode (Categorical).")
+            print("   - Advanced: Regression/KNN/MICE (Best).")
+            print("   - Rule: Sentinel values (-1, 999) are flags, NOT for computation.")
+
+            print("\n📍 TOPIC 2: REASONING IN ML")
+            print("   - Deductive (General -> Specific): Logic/Math proofs. ML does NOT use this.")
+            print("   - Inductive (Specific -> General): Patterns from data. ML IS THIS.")
+            print("   - Verdict: ML is ALWAYS Inductive. (Supervised, Unsupervised, RL).")
+
+            print("\n📍 TOPIC 3: SUPERV/UNSUPERV TRAPS")
+            print("   - Supervised: Has Labels (Outputs). Ex: Classif, Regress.")
+            print("   - Unsupervised: No Labels. Ex: Clustering, PCA, Anomaly Det.")
+            print("   - Trap: 'Unsupervised has outputs' -> FALSE.")
+            print("   - Trap: 'Clustering is Supervised' -> FALSE.")
+
+            print("\n📍 TOPIC 4: DISCRETE VS CONTINUOUS")
+            print("   - Golden Rule: Almost every algo handles BOTH.")
+            print("   - Trap: 'X only works with discrete/continuous' -> Almost always FALSE.")
+            print("   - (Classification, Regression, Neural Nets, Clustering handle both).")
+
+            print("\n📍 TOPIC 5: NUMBER OF EQUATIONS (The Matrix Trick)")
+            print("   - Question: 'How many simultaneous equations?'")
+            print("   - Golden Rule: Look at the Output Dimension (y).")
+            print("   - Equation: max(rows, cols) of y.")
+            print("     -> Xw = y (10x1)  -> 10 Equations.")
+            print("     -> w^T X = y^T (1x3) -> 3 Equations.")
+
+            print("\n📍 TOPIC 6: UNIQUENESS & CONVEXITY")
+            print("   - Trap: 'Convex Loss = Unique Solution' -> FALSE.")
+            print("     (Convex guarantees Global Min, but not Uniqueness. e.g. Flat valley).")
+            print("   - Underdetermined (m < d): Infinite solutions (Use Min-Norm).")
+            print("   - Overdetermined (m > d): Likely unique (Use Least Squares).")
+
+            print("\n📍 TOPIC 7: PIPELINE ORDER")
+            print("   - 1. Data Collection")
+            print("   - 2. Preprocessing")
+            print("   - 3. FEATURE EXTRACTION (ALWAYS before model)")
+            print("   - 4. Model Selection / Training")
+            print("   - 5. Inference (Test)")
+            print("   - Critical Trap: 'Inference = Classify then Extract' -> FALSE.")
+
+            print("\n⚡ QUICK-FIRE CHEATSHEET ⚡")
+            print("   - Replace missing with -1?            -> ❌ FALSE")
+            print("   - ML uses Deductive reasoning?        -> ❌ FALSE")
+            print("   - Unsupervised has labels?            -> ❌ FALSE")
+            print("   - 'Only works with discrete'?         -> ❌ FALSE")
+            print("   - Convex = Unique?                    -> ❌ FALSE")
+            print("   - Inference: Classify then Extract?   -> ❌ FALSE")
+            print("   - Feature Extraction BEFORE predict?  -> ✅ TRUE")
+            print("   - ML uses Inductive reasoning?        -> ✅ TRUE")
+
+        elif cheat_choice == 'B':
             print("   - Example: University admissions (Gender bias reversed by Dept choice).")
 
             print("\n2. DATA WRANGLING vs DATA CLEANING")
