@@ -772,8 +772,51 @@ def tool_classification_poly():
                 print("Solving with Pseudo-inverse OLS: W = pinv(X_feat) @ Y")
                 W = np.linalg.pinv(X_feat) @ Y
 
+            # Calculate and print MSE on training data
+            y_pred_train = X_feat @ W
+            print_mse(Y, y_pred_train)
+
             print("\nLearned W (each COLUMN = weights for one class):")
             mprint(W)
+
+            # --- Formula Printing ---
+            print(f"\n{Fore.YELLOW}Formula Interpretation:{C_RESET}")
+            try:
+                # Determine feature names
+                d_in = X_train.shape[1]
+                input_names = [f"x{i+1}" for i in range(d_in)]
+                
+                if feat_mode == '2' and poly_fitted is not None:
+                    # Polynomial features
+                    feat_names = poly_fitted.get_feature_names_out(input_names)
+                elif feat_mode == '1':
+                    # Bias + Linear
+                    feat_names = ['1'] + input_names
+                else:
+                    # Raw
+                    feat_names = input_names
+
+                # Loop over classes (columns of W)
+                n_classes = W.shape[1]
+                for c in range(n_classes):
+                    w_col = W[:, c]
+                    terms = []
+                    for i, coef in enumerate(w_col):
+                        # Use a small threshold to skip zero terms, but keep all if user wants to see
+                        term_name = str(feat_names[i]).replace(' ', '') # sklearn output has spaces like "x1 x2"
+                        
+                        sign = "+" if coef >= 0 else "-"
+                        val = abs(coef)
+                        terms.append(f"{sign} {val:.4f}({term_name})")
+                    
+                    formula_str = " ".join(terms)
+                    if formula_str.startswith("+ "): formula_str = formula_str[2:]
+                    
+                    label = f"Class {c+1}" if n_classes > 1 else "y"
+                    print(f"  {label} = {formula_str}")
+            except Exception as e:
+                wprint(f"[!] Could not generate formula string: {e}")
+
             w_norms = np.linalg.norm(W, axis=0)
             rprint(f"Weight norms per class: {w_norms}")
             if np.any(w_norms > 100):
