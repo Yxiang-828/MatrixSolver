@@ -137,10 +137,16 @@ def visualize_regression(X_data, y_data, w_model, title="Linear Regression"):
             for i in range(m):
                 # Line from (x[i], y[i]) to (x[i], pred[i])
                 plt.plot([feature_col[i], feature_col[i]], [y_flat[i], pred_flat[i]], 'k:', alpha=0.2)
-                # Annotate point with (x, y) value
-                label = f"({feature_col[i]:.2f}, {y_flat[i]:.2f})"
-                plt.annotate(label, (x_jitter[i], y_flat[i]), xytext=(5, 5), 
-                             textcoords='offset points', fontsize=8, alpha=0.9)
+                
+                # Label Actual (Blue)
+                label_act = f"Act: ({feature_col[i]:.2f}, {y_flat[i]:.2f})"
+                plt.text(x_jitter[i], y_flat[i], label_act, 
+                         fontsize=8, color='blue', alpha=0.9, verticalalignment='bottom', fontweight='bold')
+                
+                # Label Predicted (Red) - EXPLICITLY SHOWING X AND Y
+                label_pred = f"Pred: ({feature_col[i]:.2f}, {pred_flat[i]:.2f})"
+                plt.text(feature_col[i], pred_flat[i], label_pred,
+                         fontsize=8, color='red', alpha=0.9, verticalalignment='top', fontweight='bold')
             
             if np.min(y_flat) >= 0 and np.min(pred_flat) >= -0.1: plt.ylim(bottom=0)
             if np.min(feature_col) >= 0: plt.xlim(left=0)
@@ -150,34 +156,152 @@ def visualize_regression(X_data, y_data, w_model, title="Linear Regression"):
             plt.ylabel("Target y")
             plt.legend()
             
-        else:
-            # --- Actual vs Predicted Plot ---
-            plt.scatter(y_flat, pred_flat, color='purple', label='Predictions', alpha=0.6, s=40, edgecolors='k')
-            
-            # Perfect Fit Line y=x
-            all_vals = np.concatenate([y_flat, pred_flat])
-            min_val, max_val = np.min(all_vals), np.max(all_vals)
-            buff = 0.05 * (max_val - min_val) if max_val != min_val else 1.0
-            plt.plot([min_val - buff, max_val + buff], [min_val - buff, max_val + buff], 'r--', label='Perfect Fit (y=x)')
-            
-            # Residual Lines (Vertical distance to y=x imply error in prediction vs actual)
-            for i in range(m):
-                plt.plot([y_flat[i], y_flat[i]], [pred_flat[i], y_flat[i]], 'k:', alpha=0.2)
-                # Annotate point with (Actual, Pred)
-                label = f"({y_flat[i]:.2f}, {pred_flat[i]:.2f})"
-                plt.annotate(label, (y_flat[i], pred_flat[i]), xytext=(5, 5), 
-                             textcoords='offset points', fontsize=8, alpha=0.9)
+        elif d == 2 or (d == 3 and has_bias):
+            # --- 2D Features -> 3D Plot ---
+            # Identify the two feature columns
+            feature_indices = [c for c in range(d) if not np.allclose(X_data[:, c], 1)]
+            if len(feature_indices) != 2:
+                # Fallback if structure is weird (e.g. constant column that isn't 1)
+                pass 
+            else:
+                x1_col = X_data[:, feature_indices[0]]
+                x2_col = X_data[:, feature_indices[1]]
+                
+                # 3D Setup
+                ax = plt.gcf().add_subplot(111, projection='3d')
+                
+                # Plot Actual Points (Blue)
+                ax.scatter(x1_col, x2_col, y_flat, c='blue', marker='o', label='Actual', s=50, alpha=0.8)
+                
+                # Plot Predicted Points (Red)
+                ax.scatter(x1_col, x2_col, pred_flat, c='red', marker='x', label='Predicted', s=50, alpha=0.8)
 
-            if np.min(y_flat) >= 0 and np.min(pred_flat) >= -0.1:
-                plt.xlim(left=0)
-                plt.ylim(bottom=0)
+                # --- BEST FIT PLANE ---
+                try:
+                    # Create meshgrid covering the data range
+                    x1_min, x1_max = x1_col.min(), x1_col.max()
+                    x2_min, x2_max = x2_col.min(), x2_col.max()
+                    pad1 = (x1_max - x1_min) * 0.1
+                    pad2 = (x2_max - x2_min) * 0.1
+                    
+                    u_range = np.linspace(x1_min - pad1, x1_max + pad1, 20)
+                    v_range = np.linspace(x2_min - pad2, x2_max + pad2, 20)
+                    U, V = np.meshgrid(u_range, v_range)
+                    
+                    # Flatten to predict
+                    U_flat = U.ravel()
+                    V_flat = V.ravel()
+                    num_grid = len(U_flat)
+                    
+                    # specific design matrix for grid
+                    X_grid = np.zeros((num_grid, d))
+                    if has_bias: X_grid[:, bias_col_idx] = 1
+                    X_grid[:, feature_indices[0]] = U_flat
+                    X_grid[:, feature_indices[1]] = V_flat
+                    
+                    # Predict Z height
+                    Z = (X_grid @ w_model).reshape(U.shape)
+                    
+                    # Plot surface (orange plane)
+                    surf = ax.plot_surface(U, V, Z, alpha=0.2, color='orange')
+                    # Optional: Add wireframe for better depth perception
+                    ax.plot_wireframe(U, V, Z, alpha=0.1, color='gray', rstride=5, cstride=5)
+                except Exception as e:
+                    wprint(f"could not plot plane: {e}")
+                
+                # Draw Residual Lines & Annotations
+                # Calculate z_offset for label separation
+                z_vals = np.concatenate([y_flat, pred_flat])
+                z_range = z_vals.max() - z_vals.min()
+                if z_range == 0: z_range = 1.0
+                z_offset = z_range * 0.05
+                
+                for i in range(m):
+                    ax.plot([x1_col[i], x1_col[i]], 
+                            [x2_col[i], x2_col[i]], 
+                            [y_flat[i], pred_flat[i]], 
+                            'k:', alpha=0.3)
+                    
+                    # Label Actual (Blue) - Full Coordinates
+                    # format: (x1, x2, y)
+                    label_act = f"({x1_col[i]:.2f}, {x2_col[i]:.2f}, {y_flat[i]:.2f})"
+                    ax.text(x1_col[i], x2_col[i], y_flat[i] - z_offset, label_act, 
+                            color='blue', fontsize=6, ha='center', va='top', fontweight='bold')
+                    
+                    # Label Predicted (Red) - Full Coordinates
+                    label_pred = f"({x1_col[i]:.2f}, {x2_col[i]:.2f}, {pred_flat[i]:.2f})"
+                    ax.text(x1_col[i], x2_col[i], pred_flat[i] + z_offset, label_pred, 
+                            color='red', fontsize=6, ha='center', va='bottom', fontweight='bold')
+                    
+                    # Explicit X and Y labels as requested
 
-            plt.title(f"{title}: Actual vs Predicted\n{subtitle}")
-            plt.xlabel("Actual y")
-            plt.ylabel("Predicted y")
-            plt.legend()
+                ax.set_title(f"{title}: 2D Features vs Target (3D)\n{subtitle}")
+                ax.set_xlabel(f"Feature X{feature_indices[0]+1}")
+                ax.set_ylabel(f"Feature X{feature_indices[1]+1}")
+                ax.set_zlabel("Target y")
+                ax.legend()
+                
+                # --- FIX COORDINATE READOUT ---
+                # Wrap the existing format_coord to replace x, y, z with feature names
+                old_format = ax.format_coord
+                def custom_format_coord(x, y):
+                    s = old_format(x, y)
+                    # Replace default labels with our custom ones
+                    # s usually looks like "x=1.23, y=4.56, z=7.89" or "z pane=..."
+                    s = s.replace('x=', f"X{feature_indices[0]+1}=")
+                    s = s.replace('y=', f"X{feature_indices[1]+1}=")
+                    s = s.replace('z', 'y_target') # catching z= and z pane=
+                    return s
+                ax.format_coord = custom_format_coord
+                
+                # Re-do layout for 3D
+                plt.tight_layout()
+                plt.show() 
+                print(f"{Fore.GREEN}  [Graph closed]{C_RESET}")
+                return
+
+        # Fallback for > 2D or weird 2D cases
+        # --- Sample Index Plot ---
+        # Clear figure to ensure we don't overlay on failed 3D
+        plt.clf()
+        indices = np.arange(m)
+        plt.plot(indices, y_flat, 'bo-', label='Actual y', alpha=0.7)
+        plt.plot(indices, pred_flat, 'rx--', label='Predicted y', alpha=0.7)
+        
+        # Residual Lines (Vertical distance between actual and predicted)
+        for i in range(m):
+            plt.plot([i, i], [y_flat[i], pred_flat[i]], 'k:', alpha=0.3)
+            # Annotate point with error
+            error = pred_flat[i] - y_flat[i]
+            plt.annotate(f"err:{error:.2f}", (i, pred_flat[i]), xytext=(15, 0), 
+                         textcoords='offset points', fontsize=8, alpha=0.6, color='gray')
+            
+            # Construct short X string (excluding bias 1s)
+            x_raw = X_data[i]
+            x_raw_clean = [v for v in x_raw if not (has_bias and np.isclose(v, 1))]
+            
+            # Show FULL features in the label as requested (no truncation)
+            x_vals = [f"{v:.2f}" for v in x_raw_clean]
+            x_str = "[" + ",".join(x_vals) + "]"
+            
+            # Label Actual (Blue)
+            label_act = f"x={x_str}\ny={y_flat[i]:.2f}"
+            plt.annotate(label_act, (i, y_flat[i]), xytext=(-15, 5), 
+                         textcoords='offset points', fontsize=8, color='blue', fontweight='bold')
+            
+            # Label Predicted (Red)
+            label_pred = f"y^={pred_flat[i]:.2f}"
+            plt.annotate(label_pred, (i, pred_flat[i]), xytext=(5, -10), 
+                         textcoords='offset points', fontsize=8, color='red', fontweight='bold')
+
+        plt.title(f"{title}: Actual vs Predicted by Sample\n{subtitle}")
+        plt.xlabel("Sample Index")
+        plt.ylabel("Value (y)")
+        plt.legend()
+        plt.xticks(indices)  # Show all sample indices on x-axis
 
         plt.grid(True, linestyle='--', alpha=0.5)
+
         plt.tight_layout()
         plt.show() 
         print(f"{Fore.GREEN}  [Graph closed]{C_RESET}")
@@ -469,8 +593,8 @@ def tool_det_inverse():
         # --- Optional: Augmented [X|y] ---
         aug = cinput("\nAlso analyse augmented [X|y] for L.E.S.? (y/N): ").strip().lower()
         if aug in ['y', 'yes']:
-            print("⚠️  y must have same number of rows as X.")
-            y_aug = parse_matrix(cinput("Enter y (same number of rows as X): "), "y")
+            # print("⚠️  y must have same number of rows as X.") <-- Removed to avoid user confusion
+            y_aug = parse_matrix(cinput(f"Enter y (must have {m} rows): "), "y")
             if y_aug is None: return
             if y_aug.ndim == 1: y_aug = y_aug.reshape(-1, 1)
             if y_aug.shape[0] != m:
@@ -486,8 +610,12 @@ def tool_det_inverse():
             print(f"  m (equations) = {m}")
             print()
             if r < r_tilde:
-                wprint(f"  rank(X) < rank([X|y])  →  NO SOLUTION (inconsistent)")
-                wprint(f"  Reason: y is not in the column space of X.")
+                wprint(f"  rank(X) < rank([X|y])  →  NO EXACT SOLUTION (inconsistent)")
+                print(f"  Reason: y acts outside the column space of X.")
+                if r == d:
+                    rprint("  👉 Resolution: Unique Least Squares (OLS) approximation available.")
+                else:
+                    rprint("  👉 Resolution: Infinitely many Least Squares approximations available.")
             elif r == r_tilde == d:
                 if m == d:
                     rprint(f"  rank(X) = rank([X|y]) = d = m  →  UNIQUE SOLUTION")
@@ -527,6 +655,10 @@ def tool_solve_les():
         
         if y.ndim == 1:
             y = y.reshape(-1, 1)
+
+        if y.shape[0] != X.shape[0]:
+            wprint(f"[!] Dimension Mismatch: X has {X.shape[0]} rows but y has {y.shape[0]} rows.")
+            continue
             
         lam_in = cinput("Enter Lambda for Ridge (default 0): ").strip()
         bias_in = cinput("Add Bias column of 1s? (y/N): ").strip().lower()
@@ -651,8 +783,9 @@ def tool_classification_poly():
         print("1) Binary & Multi-class Predictor  (you supply pre-trained W)")
         print("2) Polynomial Features Expansion   (expand X, no training)")
         print("3) Multi-class OLS Train + Predict (train W from X & Y, then classify)")
+        print("4) Calculate N features (Theory Calculation)")
         print("B) Back to Main Menu")
-        sub_choice = cinput("Select sub-tool (1-3 or B): ").strip().upper()
+        sub_choice = cinput("Select sub-tool (1-4 or B): ").strip().upper()
         
         if sub_choice == 'B':
             break
@@ -859,6 +992,27 @@ def tool_classification_poly():
                 predicted = np.argmax(raw_scores, axis=1) + 1
                 rprint(f"\n🎯 Predicted class: {predicted[0]}")
                 print("-" * 47)
+
+        elif sub_choice == '4':
+            try:
+                print("\n--- Theoretical Feature Count (Polynomial) ---")
+                n_feats = int(cinput("Enter number of original features (n): ").strip())
+                deg = int(cinput("Enter polynomial degree (d): ").strip())
+                
+                # Formula with bias: (n+d) choose d
+                # Formula without bias: (n+d)C d - 1 ... actually sklearn includes bias by default so (n+d)Cd is correct for "terms"
+                count = nCr(n_feats + deg, deg)
+                
+                print(f"\nFor n={n_feats} features and degree={deg}:")
+                print(f"Formula: (n + d) choose d")
+                print(f"= ({n_feats} + {deg}) choose {deg} = {n_feats + deg}C{deg}")
+                
+                rprint(f"Total Unknown Parameters / Terms (including bias) = {count}")
+                
+                if count is not None and count > 1000:
+                    wprint("⚠️  That's a lot of features!")
+            except ValueError:
+                wprint("[!] Invalid integer input.")
 
         else:
             wprint("[!] Invalid sub-tool choice.")
@@ -1124,10 +1278,17 @@ def tool_cheat_sheets():
         print("1) L.E.S. Rank Conditions (Matrix Solvability)")
         print("2) Data Types (NOIR Framework)")
         print("3) Probability & Combinatorics Rules")
+        print("4) Linear, Affine & Polynomial Functions")
+        print("5) Learning Paradigms (Deduction/Induction/Abduction)")
+        print("6) Probability Foundations (Sample Space/Events/Axioms)")
+        print("7) The Data Pipeline (6 Stages)")
+        print("8) Learning Architectures (Supervised/Unsupervised/RL)")
+        print("9) Preprocessing Myths (Imputation/Encoding/Feature Extraction)")
+        print("10) Key Misconceptions & Paradoxes (Simpson's/Anscombe's)")
         print("B) Back to Main Menu")
         print("=" * 55)
         
-        cheat_choice = cinput("Select a topic (1-3 or B): ").strip().upper()
+        cheat_choice = cinput("Select a topic (1-10 or B): ").strip().upper()
         
         if cheat_choice == 'B':
             break
@@ -1202,6 +1363,245 @@ def tool_cheat_sheets():
             print("   4. BAYES' RULE:  P(A | B) = [P(B | A) * P(A)] / P(B)")
             print("   5. UNION:        P(A U B) = P(A) + P(B) - P(A ∩ B)")
             print("-" * 60)
+
+        elif cheat_choice == '4':
+            print("\n--- [OPTION 4: LINEAR, AFFINE & POLYNOMIAL FUNCTIONS] ---")
+            print("Linear function (f : R^n -> R^m)")
+            print("  MUST satisfy BOTH properties:")
+            print("  1. Additivity: f(x + y) = f(x) + f(y)")
+            print("  2. Homogeneity: f(ax) = a f(x)")
+            print("  -> Combined (Superposition): f(ax + by) = a f(x) + b f(y)")
+            print("  -> Passes through origin: f(0) = 0")
+            print("  -> Matrix Test: Every linear f(x) can be written as f(x) = Ax\n")
+            
+            print("Affine function (Linear + Shift)")
+            print("  Definition: f(x) = Ax + b")
+            print("  -> DOES NOT pass through origin if b != 0")
+            print("  -> Fails Additivity: f(x+y) != f(x)+f(y) (b term doubles)")
+            print("  -> What holds? Affine combinations: f(ax + (1-a)y) = a f(x) + (1-a)f(y)\n")
+            
+            print("Homogeneous Function (Degree k)")
+            print("  Scaling only: f(ax) = a^k f(x)")
+            print("  k=1: Linear homogeneity (f(ax) = a f(x))")
+            print("  k=2: Quadratic scaling (f(2x) = 4 f(x)). NOT LINEAR if k != 1.\n")
+            
+            print("Polynomial Functions")
+            print("  General: f(x) = a_n x^n + ... + a_1 x + a_0")
+            print("  -> Linear ONLY if n=1 AND a_0=0")
+            print("  -> Fails Additivity if n >= 2 (Cross-terms appear: (x+y)^2 != x^2 + y^2)\n")
+            
+            print("Quick Rejection Tests (It is NOT Linear if...):")
+            print("  1. f(0) != 0 (Has a constant term/intercept)")
+            print("  2. Multiplicative: f(x+y) = f(x)f(y) (e.g. exponentials)")
+            print("  3. Squared/Absolute terms: f(ax) != a f(x)")
+            print("  4. Multilinear != Linear (e.g. dot product is linear in x separately, not both)")
+
+        elif cheat_choice == '5':
+            print("\n--- [OPTION 5: LEARNING PARADIGMS - DEDUCTION / INDUCTION / ABDUCTION] ---")
+            print("1. DEDUCTION (Top-Down / General -> Specific)")
+            print("   - Start: General Principle (Assumption) is TRUE.")
+            print("   - Process: Apply rule to a case.")
+            print("   - End: Result MUST be true.")
+            print("   - Certainty: 100% (If premises are true)")
+            print("   - EXAMPLE:")
+            print("     Rule: All men are mortal.")
+            print("     Case: Socrates is a man.")
+            print("     Result: Socrates is mortal.")
+            print("   - Use Case: Logical proofs, mathematical derivations")
+
+            print("\n2. INDUCTION (Bottom-Up / Specific -> General)")
+            print("   - Start: Many specific observations.")
+            print("   - Process: Find a pattern.")
+            print("   - End: General Rule (Hypothesis).")
+            print("   - Certainty: Probabilistic (Can be falsified by 1 counter-example)")
+            print("   - EXAMPLE:")
+            print("     Obs 1: Swan 1 is white.")
+            print("     Obs 2: Swan 2 is white.")
+            print("     ... Obs 1000: Swan 1000 is white.")
+            print("     Conc: ALL swans are white.")
+            print("   - Use Case: Scientific method, machine learning training (Generalization)")
+
+            print("\n3. ABDUCTION (Inference to Best Explanation)")
+            print("   - Start: Incomplete observations / Surprising fact (Effect).")
+            print("   - Process: Guess the most likely cause.")
+            print("   - End: Hypothesis (Explanation).")
+            print("   - Certainty: Lowest (Educated Guess)")
+            print("   - EXAMPLE:")
+            print("     Fact: The grass is wet.")
+            print("     Maybe: It rained? (Likely)")
+            print("     Maybe: Sprinklers ran? (Possible)")
+            print("     Conc: It probably rained.")
+            print("   - Use Case: Medical diagnosis, debugging code, detective work")
+
+        elif cheat_choice == '6':
+            print("\n--- [OPTION 6: PROBABILITY FOUNDATIONS - SAMPLE SPACE / EVENTS / AXIOMS] ---")
+            print("1. SAMPLE SPACE (S or Ω)")
+            print("   - The set of ALL possible outcomes of an experiment.")
+            print("   - Must be: 1. Mutually Exclusive (Cannot happen together)")
+            print("   - Must be: 2. Collectively Exhaustive (Cover all possibilities)")
+            print("   - Example (Coin): S = {H, T}")
+            print("   - Example (Die): S = {1, 2, 3, 4, 5, 6}")
+
+            print("\n2. EVENT (A, B, E)")
+            print("   - A subset of the Sample Space.")
+            print("   - E ⊆ S")
+            print("   - Simple Event: One outcome {1}")
+            print("   - Compound Event: Multiple outcomes {2, 4, 6} (Even numbers)")
+            print("   - Empty Set (∅): Impossible event.")
+            print("   - Universal Set (S): Certain event.")
+
+            print("\n3. KOLMOGOROV AXIOMS (The Rules)")
+            print("   Rule 1 (Non-negativity): P(E) >= 0 for any event E.")
+            print("   Rule 2 (Normalization): P(S) = 1 (Something must happen).")
+            print("   Rule 3 (Additivity):")
+            print("      If A and B are Mutually Exclusive (A ∩ B = ∅):")
+            print("      P(A U B) = P(A) + P(B)")
+            
+            print("\n4. CONSEQUENCES (Derived Rules)")
+            print("   - Probability of Empty Set: P(∅) = 0")
+            print("   - Monotonicity: If A ⊆ B, then P(A) <= P(B)")
+            print("   - Numeric Bound: 0 <= P(E) <= 1")
+            print("   - Complement Rule: P(A') = 1 - P(A)")
+            print("   - Inclusion-Exclusion (General Union):")
+            print("     P(A U B) = P(A) + P(B) - P(A ∩ B)")
+
+        elif cheat_choice == '7':
+            print("\n--- [OPTION 7: THE DATA PIPELINE (6 STAGES)] ---")
+            
+            print("\n① DATA ACQUISITION (Collection / Sourcing / ETL)")
+            print("   - Sources: Sensors, DBs, APIs, Surveys.")
+            print("   - Key concerns: Sampling bias, Representativeness, Labelling cost, Class imbalance.")
+            print("   - Strategies: RCT (Causal), Observational study, A/B Testing.")
+            print("   - Output: Raw, unprocessed dataset.")
+
+            print("\n② DATA WRANGLING (Preprocessing / Munging / ETL)")
+            print("   - Normalisation: Scale features. Standardise z = (x-u)/s or Min-Max.")
+            print("   - Imputation: Fill missing (Mean/Median for MCAR; Model/KNN for MAR/MNAR).")
+            print("   - Denoising: Smooth/filter noise (Gaussian blur, moving avg).")
+            print("   - Encoding: Categorical -> Numeric (One-hot, Label, Embeddings).")
+            print("   - Splitting: Train (Fit) / Val (Tune) / Test (Eval). Approx 70/15/15.")
+            print("   - CRITICAL: No data leakage from Test to Train!")
+
+            print("\n③ FEATURE ENGINEERING (Create + Transform)")
+            print("   - Feature Extraction: Transform raw -> new compact rep (PCA, CNN activations, MFCC).")
+            print("   - Feature Construction: Hand-craft using domain knowledge (BMI = kg/m^2, Interaction terms).")
+            print("   - Representation Learning: Model learns features automatically (Deep Learning).")
+
+            print("\n④ FEATURE SELECTION (Choose, don't create)")
+            print("   - Filter Methods: Score independently. Fast. (Pearson, Chi-Square, Variance Threshold).")
+            print("   - Wrapper Methods: Train model on subsets. Slow but accurate. (RFE, Forward/Backward Selection).")
+            print("   - Embedded Methods: Selection during training. (LASSO L1, Tree Importance).")
+
+            print("\n⑤ MODEL FITTING (Training / Learning)")
+            print("   - Goal: Minimize Loss L(theta).")
+            print("   - Hyperparameter Tuning: Grid/Random search, Bayesian Opt. (On Validation set).")
+            print("   - Cross-Validation: k-fold (e.g. k=5, 10) for stable generalization estimate.")
+            print("   - Regularization: Penalize complexity. L1 (Sparsity), L2 (Shrinkage), Elastic Net.")
+
+            print("\n⑥ MODEL EVALUATION (Assessment)")
+            print("   - Classification: Accuracy, Precision, Recall, F1 (Harmonic mean), ROC-AUC.")
+            print("   - Regression: MSE, MAE (Robust), R2 (Variance explained), RMSE.")
+            print("   - Generalization: Goal is low error on UNSEEN data.")
+            print("   - Overfitting: Low Training Error, High Test Error.")
+            print("   - Underfitting: High Error on both.")
+            
+            print("\n* OVERARCHING TERMS *")
+            print("  - EDA: Visualise distributions/correlations BEFORE modelling.")
+            print("  - Data Leakage: Information from Test set bleeds into Train (illegal).")
+            print("  - AutoML: Automates steps 3-6 (e.g. Auto-sklearn).")
+            print("  - MLOps: DevOps for ML (Versioning, Drift monitoring, CI/CD).")
+
+        elif cheat_choice == '8':
+            print("\n--- [OPTION 8: LEARNING ARCHITECTURES & SIGNALS] ---")
+            print("The Mental Model: What signal does the model learn from?")
+            
+            print("\n1. SUPERVISED LEARNING")
+            print("   - Signal: Human-provided CORRECT ANSWERS (Labels).")
+            print("   - Goal: Map Input X -> Output Y.")
+            print("   - Examples: Classification (Discrete), Regression (Continuous).")
+
+            print("\n2. UNSUPERVISED LEARNING")
+            print("   - Signal: Data Structure ALONE (No labels).")
+            print("   - Goal: Find hidden patterns, clusters, or probability density.")
+            print("   - Examples: Clustering (K-Means), Dimensionality Reduction (PCA).")
+
+            print("\n3. REINFORCEMENT LEARNING")
+            print("   - Signal: Environment Feedback (Reward / Penalty).")
+            print("   - Note: Signal is often DELAYED and SPARSE.")
+            print("   - Goal: Maximize cumulative reward over time (Policy Optimization).")
+            print("   - Examples: Robotics, Game AI, Trading.")
+
+            print("\n4. SEMI-SUPERVISED LEARNING")
+            print("   - Signal: Mix of small labeled set + large unlabeled set.")
+            print("   - Goal: Leverage structure of unlabeled data to improve labeled performance.")
+
+            print("\n5. SELF-SUPERVISED LEARNING (Critical for EE2211/GenAI)")
+            print("   - Signal: Auto-generated from the data itself.")
+            print("   - Logic: 'Predict the missing piece' (e.g. Next token, Masked word).")
+            print("   - Format: Looks Unsupervised (no human labels), but technically Supervised (concrete loss).")
+            print("   - Example: LLMs (GPT), BERT.")
+
+        elif cheat_choice == '9':
+            print("\n--- [OPTION 9: DATA PREPROCESSING MYTHS & TRUTHS] ---")
+            print("GOLDEN RULE: Preprocessing operates on RAW DATA, not Models!")
+            print("It happens BEFORE any learning paradigm touches it.")
+            
+            print("\n1. DATA IMPUTATION (Filling missing values)")
+            print("   - Paradigm: Agnostic (Required for Supervised, Unsupervised, RL).")
+            print("   - MCAR (Missing Completely At Random): Safe to drop or simple mean.")
+            print("   - MAR (Missing At Random): Missingness depends on observed data. Use MICE.")
+            print("   - MNAR (Missing Not At Random): Dangerous. Value depends on itself.")
+            print("     -> Fix: Model-based imputation + Add 'Was_Missing' boolean indicator.")
+            print("   - TRUTH: Unsupervised methods (e.g. k-Means) fail on NaNs too.")
+
+            print("\n2. VISUALISATION / EDA")
+            print("   - Paradigm: Agnostic. Usually Step 0.")
+            print("   - Unsupervised Ex: Cluster scatter plots, Dendrograms, t-SNE, UMAP.")
+            print("   - Supervised Ex: Feature vs Target plots, ROC curves, Confusion Matrix.")
+            print("   - TRUTH: EDA happens before you decide the model.")
+
+            print("\n3. ENCODING (Categorical -> Numeric)")
+            print("   - Paradigm: Agnostic.")
+            print("   - One-Hot: Good for nominal. Watch out for 'Dummy Variable Trap' (multicollinearity).")
+            print("   - Label Encoding: Good for Ordinal. Bad for Nominal (implies order).")
+            print("   - Binary Coding: Compact (log2 N bits). Used in RL state representation.")
+            print("   - TRUTH: Algorithms need math (numbers), not strings.")
+
+            print("\n4. FEATURE EXTRACTION")
+            print("   - Paradigm: Agnostic.")
+            print("   - Unsupervised Ex: PCA (Variance), Autoencoders (Reconstruction).")
+            print("   - Supervised Ex: LDA (Class separation), CNN Activations (Label-driven).")
+            print("   - Self-Supervised Ex: Word2Vec, BERT embeddings.")
+            print("   - TRUTH: It's a data transformation step.")
+
+        elif cheat_choice == '10':
+            print("\n--- [OPTION 10: KEY MISCONCEPTIONS & STATISTICAL PARADOXES] ---")
+            
+            print("\n1. SIMPSON'S PARADOX")
+            print("   - What: A trend in groups DISAPPEARS or REVERSES when combined.")
+            print("   - Why: Confounding variable correlates with both Group and Outcome.")
+            print("   - Fix: STRATIFICATION (Analyze subgroups separately).")
+            print("   - NOT Fix: Data wrangling (cleaning doesn't solve statistical paradoxes).")
+            print("   - Example: University admissions (Gender bias reversed by Dept choice).")
+
+            print("\n2. DATA WRANGLING vs DATA CLEANING")
+            print("   - Hierarchy: Wrangling ⊃ Cleaning.")
+            print("   - WRANGLING (Umbrella): The entire process (Collection -> Cleaning -> Reshaping).")
+            print("   - CLEANING (Sub-step): Removing nulls, duplicates, outliers.")
+            print("   - Trap: They are NOT synonyms. Cleaning is just one part of Wrangling.")
+
+            print("\n3. k-NEAREST NEIGHBOURS (kNN)")
+            print("   - Multi-class?: YES, natively. Uses Majority Vote.")
+            print("   - No modification needed for >2 classes.")
+            print("   - For Regression?: Yes, take MEAN of neighbours instead of vote.")
+            print("   - Param k: Small k = Overfit (High Var). Large k = Underfit (High Bias).")
+
+            print("\n4. ANSCOMBE'S QUARTET (The 'Visualise First' Lesson)")
+            print("   - Fact: 4 datasets with IDENTICAL Mean, Variance, Correlation, Regression Line.")
+            print("   - Visuals: 1. Linear, 2. Curved, 3. Outlier, 4. Vertical Cluster.")
+            print("   - Lesson: Summary stats are INSUFFICIENT. Always plot data (EDA).")
+            print("   - Regression Property: Line always passes through (mean_x, mean_y).")
+
         else:
             wprint("[!] Invalid sub-tool choice.")
 
