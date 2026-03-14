@@ -4,7 +4,22 @@ A comprehensive Python-based Command-Line Interface (CLI) interactive toolkit fo
 
 ---
 
-## 🛠️ Skills Used
+## � Demo & Visualizations
+<div align="center">
+  <img src="DemoImages/Dashboard.png" alt="Main Dashboard" width="80%">
+  <p><em>Main Menu Interface & Interactive Cheatsheets</em></p>
+  
+  <img src="DemoImages/MatrixStats.png" alt="Matrix Analysis" width="80%">
+  <p><em>Matrix Solvability Analysis & Engine</em></p>
+  
+  <img src="DemoImages/2dSurfaceVisualisation.png" alt="2D Visualization" width="45%">
+  <img src="DemoImages/SurfaceVisualisation.png" alt="3D Surface Visualization" width="45%">
+  <p><em>Matplotlib 2D and 3D Model Rendering</em></p>
+</div>
+
+---
+
+## �🛠️ Skills Used
 
 *   **Matrix Algebra & Computational Mathematics:** Deep handling of matrix manipulations (Multiplication, Dot Products, Transposes), Left/Right Pseudo-inverses, Rank computing, and Determinants.
 *   **Machine Learning (Regression & Classification):** Implementing Ordinary Least Squares (OLS), Ridge Regression (Primal and Dual forms with L2 normalization), and Multi-Class Classification (One-hot encodings / One-vs-All logic).
