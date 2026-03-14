@@ -7,6 +7,7 @@ A comprehensive Python-based Command-Line Interface (CLI) interactive toolkit fo
 ## � Demo & Visualizations
 <div align="center">
   <img src="DemoImages/Dashboard.png" alt="Main Dashboard" width="80%">
+    <img src="DemoImages/cheatsheet.png" alt="Main Dashboard" width="80%">
   <p><em>Main Menu Interface & Interactive Cheatsheets</em></p>
   
   <img src="DemoImages/MatrixStats.png" alt="Matrix Analysis" width="80%">
