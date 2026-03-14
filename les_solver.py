@@ -498,138 +498,141 @@ def tool_det_inverse():
 
         m, d = X.shape
         r = np.linalg.matrix_rank(X)
-        cond = np.linalg.cond(X)
+        max_rank = min(m, d)
+        det_X = np.linalg.det(X) if m == d else None
         SEP = "=" * 54
-    
-        print(f"\n{SEP}")
-        print("📊 BULK MATRIX ANALYSIS")
-        print(SEP)
-    
-        # --- Shape & Rank ---
-        print(f"\n📐 SHAPE & RANK")
-        print(f"  Shape        : {m} rows (m) × {d} cols (d)")
-        rprint(f"  rank(X)      = {r}")
-        rprint(f"  max rank     = min(m,d) = min({m},{d}) = {min(m,d)}")
-        if r == min(m, d):
-            rprint(f"  Full Rank    ✓ (rank = min(m,d))")
-        else:
-            wprint(f"  RANK DEFICIENT — missing {min(m,d)-r} dimension(s)")
-    
-        # --- System Classification ---
-        print(f"\n⚙️  SYSTEM TYPE  (m={m} vs d={d})")
+
+        def rel(a, b):
+            if a > b:
+                return ">"
+            if a < b:
+                return "<"
+            return "="
+
         if m > d:
-            print(f"  OVERDETERMINED (m > d): more equations than unknowns")
-            print(f"  → Exact solution unlikely. Least-squares approximation used.")
-        elif m == d:
-            print(f"  EVEN (m = d): same equations as unknowns")
-            print(f"  → Exact solution possible IF rank(X) = d.")
+            system_type = "OVERDETERMINED"
+        elif m < d:
+            system_type = "UNDERDETERMINED"
         else:
-            wprint(f"  UNDERDETERMINED (m < d): fewer equations than unknowns")
-            wprint(f"  → Infinite solutions possible. Minimum-norm solution used.")
-    
-        # --- Inverse Availability ---
-        print(f"\n🔄 INVERSE AVAILABILITY")
-        # Standard inverse: only square + full rank
-        if m == d:
-            if r == d:
-                rprint(f"  ✅ Standard Inverse (X⁻¹) : YES — square & full rank")
-                rprint(f"     Formula : X⁻¹ directly")
-            else:
-                wprint(f"  ❌ Standard Inverse (X⁻¹) : NO — square but RANK DEFICIENT (rank={r} < d={d})")
-        else:
-            print(f"  —  Standard Inverse (X⁻¹) : N/A — not square (m≠d)")
-    
-        # Left inverse: m >= d and rank(X) == d
-        if r == d:
-            rprint(f"  ✅ Left Inverse  (XᵀX)⁻¹Xᵀ : YES — rank(X) = d = {d}")
-            rprint(f"     Formula : (XᵀX)⁻¹ Xᵀ     | Used for: Least Squares / OLS")
-        else:
-            wprint(f"  ❌ Left Inverse  (XᵀX)⁻¹Xᵀ : NO  — rank(X)={r} < d={d}")
-    
-        # Right inverse: m <= d and rank(X) == m
-        if r == m:
-            rprint(f"  ✅ Right Inverse Xᵀ(XXᵀ)⁻¹  : YES — rank(X) = m = {m}")
-            rprint(f"     Formula : Xᵀ(XXᵀ)⁻¹       | Used for: Least Norm / Underdetermined")
-        else:
-            wprint(f"  ❌ Right Inverse Xᵀ(XXᵀ)⁻¹  : NO  — rank(X)={r} < m={m}")
-    
-        # --- Ridge Forms ---
-        print(f"\n🔵 RIDGE REGRESSION FORMS  (both always computable)")
-        if m >= d:
-            rprint(f"  ✅ PRIMAL preferred (m≥d={d}): W = (XᵀX + λI_d)⁻¹ Xᵀ y   [d×d inversion]")
-            print(f"     DUAL   available (m<d):  W = Xᵀ(XXᵀ + λI_m)⁻¹ y    [m×m inversion]")
-        else:
-            print(f"     PRIMAL available (m≥d):  W = (XᵀX + λI_d)⁻¹ Xᵀ y   [d×d inversion]")
-            rprint(f"  ✅ DUAL   preferred (m<d={m}):  W = Xᵀ(XXᵀ + λI_m)⁻¹ y    [m×m inversion, smaller]")
-    
-        # --- Determinant (square only) ---
-        if m == d:
-            print(f"\n🔢 DETERMINANT  (square matrix)")
-            det_X = np.linalg.det(X)
-            rprint(f"  det(X) = {det_X:.6f}")
-            if np.isclose(det_X, 0):
-                wprint(f"  → det ≈ 0 : SINGULAR — columns linearly dependent, no standard inverse")
-            else:
-                print(f"  → det ≠ 0 : INVERTIBLE")
-            print(f"  (Computing inverse...)")
-            if not np.isclose(det_X, 0):
-                inv_X = np.linalg.inv(X)
-                print(f"  X⁻¹ =")
-                mprint(inv_X)
-    
-        # --- Condition Number ---
-        print(f"\n📈 CONDITION NUMBER")
-        if cond > 1e10:
-            wprint(f"  cond(X) = {cond:.3e}  ⚠️  SEVERELY ILL-CONDITIONED — numerically unstable!")
-        elif cond > 1e6:
-            wprint(f"  cond(X) = {cond:.3e}  ⚠️  ILL-CONDITIONED — Ridge regularisation strongly recommended")
-        elif cond > 1e3:
-            print(f"  cond(X) = {cond:.3e}  ⚠️  Mildly ill-conditioned — Ridge may help")
-        else:
-            rprint(f"  cond(X) = {cond:.3e}  ✓  Well-conditioned")
-    
+            system_type = "EVEN"
+
+        std_inverse = (m == d and r == d)
+        left_inverse = (r == d)
+        right_inverse = (r == m)
+
         print(f"\n{SEP}")
-    
+        print("📊 BULK MATRIX SUMMARY")
+        print(SEP)
+
+        print("\nX =")
+        print(np.array2string(X, precision=4, suppress_small=True))
+
+        print("\n📐 CORE FACTS")
+        print(f"  shape(X)      : {m} × {d}")
+        print(f"  system type   : {system_type}  (m {rel(m, d)} d)")
+        rprint(f"  rank(X)       = {r}")
+        print(f"  max rank      = min(m,d) = {max_rank}")
+        if r == max_rank:
+            rprint("  full rank     : YES")
+        else:
+            wprint(f"  full rank     : NO  (missing {max_rank - r} dimension(s))")
+
+        print("\n🔢 DETERMINANT")
+        if det_X is None:
+            print("  det(X)        : N/A (X is not square)")
+        else:
+            rprint(f"  det(X)        = {det_X:.6f}")
+            if np.isclose(det_X, 0):
+                wprint("  invertible    : NO (det ≈ 0)")
+            else:
+                rprint("  invertible    : YES (det ≠ 0)")
+
+        print("\n🔄 INVERSE AVAILABILITY")
+        if std_inverse:
+            rprint("  X^-1 (standard)           : YES")
+        elif m != d:
+            print("  X^-1 (standard)           : NO (not square)")
+        else:
+            wprint(f"  X^-1 (standard)           : NO (rank(X)={r} < d={d})")
+
+        if left_inverse:
+            rprint("  Left inverse  (X^T X)^-1X^T: YES")
+        else:
+            wprint(f"  Left inverse  (X^T X)^-1X^T: NO  (rank(X)={r} < d={d})")
+
+        if right_inverse:
+            rprint("  Right inverse X^T(XX^T)^-1 : YES")
+        else:
+            wprint(f"  Right inverse X^T(XX^T)^-1 : NO  (rank(X)={r} < m={m})")
+
+        print("\n🔵 RIDGE OPTIONS (lambda > 0, both always computable)")
+        if m >= d:
+            rprint("  Preferred: PRIMAL  w = (X^T X + lambda I_d)^-1 X^T y")
+            print("  Alternate: DUAL    w = X^T (X X^T + lambda I_m)^-1 y")
+        else:
+            rprint("  Preferred: DUAL    w = X^T (X X^T + lambda I_m)^-1 y")
+            print("  Alternate: PRIMAL  w = (X^T X + lambda I_d)^-1 X^T y")
+
+        print(f"\n{SEP}")
+
         # --- Optional: Augmented [X|y] ---
         aug = cinput("\nAlso analyse augmented [X|y] for L.E.S.? (y/N): ").strip().lower()
         if aug in ['y', 'yes']:
-            # print("⚠️  y must have same number of rows as X.") <-- Removed to avoid user confusion
             y_aug = parse_matrix(cinput(f"Enter y (must have {m} rows): "), "y")
             if y_aug is None: return
             if y_aug.ndim == 1: y_aug = y_aug.reshape(-1, 1)
             if y_aug.shape[0] != m:
                 wprint(f"[!] y has {y_aug.shape[0]} rows but X has {m}. Must match!"); continue
+
             X_tilde = np.hstack((X, y_aug))
             r_tilde = np.linalg.matrix_rank(X_tilde)
+
             print(f"\n{'='*54}")
-            print(f"📋 L.E.S. ANALYSIS  for Xw = y")
+            print("📋 L.E.S. DECISION  for Xw = y")
             print(f"{'='*54}")
-            rprint(f"  rank(X)       = {r}")
-            rprint(f"  rank([X|y])   = {r_tilde}")
-            print(f"  d (variables) = {d}")
-            print(f"  m (equations) = {m}")
-            print()
+
+            print(f"  Comparison 1: m {rel(m, d)} d      ({m} {rel(m, d)} {d})")
+            print(f"  Comparison 2: rank(X) {rel(r, r_tilde)} rank([X|y])   ({r} {rel(r, r_tilde)} {r_tilde})")
+            print(f"  Variables d = {d}, Equations m = {m}")
+            print("")
+
             if r < r_tilde:
-                wprint(f"  rank(X) < rank([X|y])  →  NO EXACT SOLUTION (inconsistent)")
-                print(f"  Reason: y acts outside the column space of X.")
+                wprint("  Exact solution: NO (inconsistent system)")
                 if r == d:
-                    rprint("  👉 Resolution: Unique Least Squares (OLS) approximation available.")
+                    rprint("  Approximation: UNIQUE least-squares solution")
+                    rprint("  Use now: OLS / left inverse  w_hat = (X^T X)^-1 X^T y")
                 else:
-                    rprint("  👉 Resolution: Infinitely many Least Squares approximations available.")
+                    wprint("  Approximation: NON-UNIQUE least-squares minimizers")
+                    rprint("  Use now: pseudo-inverse  w_hat = pinv(X) y  (minimum-norm LS)")
+
             elif r == r_tilde == d:
                 if m == d:
-                    rprint(f"  rank(X) = rank([X|y]) = d = m  →  UNIQUE SOLUTION")
-                    rprint(f"  Use: w = X⁻¹y")
+                    rprint("  Exact solution: YES, UNIQUE")
+                    rprint("  Use now: standard inverse  w = X^-1 y")
                 else:
-                    rprint(f"  rank(X) = rank([X|y]) = d < m  →  UNIQUE SOLUTION (overdetermined consistent)")
-                    rprint(f"  Use: w = (XᵀX)⁻¹Xᵀy  (Left inverse / OLS)")
+                    rprint("  Exact solution: YES, UNIQUE")
+                    rprint("  Use now: left inverse  w = (X^T X)^-1 X^T y")
+
             elif r == r_tilde < d:
-                wprint(f"  rank(X) = rank([X|y]) = {r} < d={d}  →  INFINITE SOLUTIONS")
+                wprint("  Exact solution: YES, INFINITELY MANY")
                 if r == m:
-                    rprint(f"  rank(X) = m = {m}  →  Right inverse exists")
-                    rprint(f"  Use: ŵ = Xᵀ(XXᵀ)⁻¹y  (Minimum norm / Least norm solution)")
+                    rprint("  Use now: right inverse  w_hat = X^T (X X^T)^-1 y  (least norm)")
                 else:
-                    wprint(f"  rank(X) < m  →  No right inverse. General infinite family of solutions.")
+                    rprint("  Use now: pseudo-inverse  w_hat = pinv(X) y  (minimum-norm exact)")
+
+            else:
+                wprint("  Numerical edge case detected. Use pseudo-inverse for a stable fallback:")
+                rprint("  Use now: w_hat = pinv(X) y")
+
+            print("")
+            print("  Ridge fallback (if noise/instability expected):")
+            if m >= d:
+                print("  Prefer PRIMAL: (X^T X + lambda I_d)^-1 X^T y")
+                print("  Dual also valid: X^T (X X^T + lambda I_m)^-1 y")
+            else:
+                print("  Prefer DUAL:   X^T (X X^T + lambda I_m)^-1 y")
+                print("  Primal also valid: (X^T X + lambda I_d)^-1 X^T y")
+
             print(f"{'='*54}\n")
     
     
@@ -1326,19 +1329,46 @@ def tool_cheat_sheets():
             
         elif cheat_choice == '2':
             print("\n--- [OPTION 2: DATA TYPES (NOIR)] ---")
-            print("N - NOMINAL: Categories with NO order.")
-            print("    Examples: Colors (Red, Blue), Gender, Zip Codes.")
-            print("    Math allowed: Counting/Mode.\n")
-            print("O - ORDINAL: Ordered categories, but spacing is meaningless.")
-            print("    Examples: Letter Grades (A, B, C), Rankings (1st, 2nd).")
-            print("    Math allowed: Median, Percentiles.\n")
-            print("I - INTERVAL: Ordered, equal spacing, but NO true zero.")
-            print("    (Zero does not mean 'absence' of the thing).")
-            print("    Examples: Temperature (Celsius), IQ Scores.")
-            print("    Math allowed: Addition/Subtraction (Mean). No ratios.\n")
-            print("R - RATIO: Ordered, equal spacing, WITH a true absolute zero.")
-            print("    Examples: Height, Weight, Kelvin, Price, Distance.")
-            print("    Math allowed: All math (Multiplication/Division).\n")
+            print("N - NOMINAL")
+            print("    Definition : Categories with no order")
+            print("    True zero  : No")
+            print("    Examples   : Gender, colour, country, blood type")
+            print("    Valid      : Equality (=, !=), mode")
+            print("    Not valid  : Ordering, arithmetic, median, mean, variance, std dev")
+            print("    ML encode  : Label / One-Hot\n")
+            print("O - ORDINAL")
+            print("    Definition : Categories with meaningful order")
+            print("    True zero  : No")
+            print("    Examples   : Rankings, satisfaction (1-5), education level")
+            print("    Valid      : Equality, ordering, mode, median")
+            print("    Not valid  : Addition, subtraction, multiplication, division, mean")
+            print("    ML encode  : Label / Ordinal encoding\n")
+            print("I - INTERVAL")
+            print("    Definition : Ordered with equal intervals, no true zero")
+            print("    True zero  : No")
+            print("    Examples   : Temperature (C/F), IQ scores, dates")
+            print("    Valid      : Equality, ordering, addition, subtraction")
+            print("    Stats      : Mode, median, mean, variance, std dev")
+            print("    Not valid  : Multiplication, division, coefficient of variation, ratios")
+            print("    ML encode  : Direct / Normalise\n")
+            print("R - RATIO")
+            print("    Definition : Ordered with equal intervals and true zero")
+            print("    True zero  : Yes")
+            print("    Examples   : Height, weight, age, Kelvin temperature, income")
+            print("    Valid      : Equality, ordering, all arithmetic")
+            print("    Stats      : Mode, median, mean, variance, std dev, coefficient of variation")
+            print("    Ratios     : Meaningful (e.g. 'twice as much')")
+            print("    ML encode  : Direct / Normalise\n")
+            print("QUICK RULES")
+            print("    Equality (=, !=)            : Nominal, Ordinal, Interval, Ratio")
+            print("    Ordering (>, <)             : Ordinal, Interval, Ratio")
+            print("    Addition / Subtraction      : Interval, Ratio")
+            print("    Multiplication / Division   : Ratio only")
+            print("    Mode                        : All four")
+            print("    Median                      : Ordinal, Interval, Ratio")
+            print("    Mean / Variance / Std Dev   : Interval, Ratio")
+            print("    Coefficient of Variation    : Ratio only")
+            print("    Meaningful ratios           : Ratio only\n")
             
         elif cheat_choice == '3':
             print("\n--- [OPTION 3: PROBABILITY & COMBINATORICS CHEAT SHEET] ---")
